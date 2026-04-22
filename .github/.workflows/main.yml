@@ -12,9 +12,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "10 14 * * 1-5"   # 2:10 PM UTC, Monday to Friday
+    - cron: "10 14 * * 1-5"  
 
-# ── ECR repository names (change these to match your AWS ECR repo names) ──
 env:
   BACKEND_ECR_REPOSITORY: expense-tracker-backend
   FRONTEND_ECR_REPOSITORY: expense-tracker-frontend
@@ -22,9 +21,6 @@ env:
 permissions:
   contents: read
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 1 — Build & test the Spring Boot backend (Java 17, Maven, JAR)
-# ─────────────────────────────────────────────────────────────────────────────
 jobs:
   Build_Backend:
     name: Build Backend
@@ -40,7 +36,7 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
-          cache: maven          # caches ~/.m2 between runs for speed
+          cache: maven        
 
       - name: Build JAR (skip tests here — tests run in next job)
         working-directory: backend
@@ -57,9 +53,7 @@ jobs:
         if: failure()
         run: echo "🚨 Backend build failed — check Maven logs above."
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 2 — Build the React + Vite frontend
-# ─────────────────────────────────────────────────────────────────────────────
+
   Build_Frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
@@ -95,9 +89,7 @@ jobs:
         if: failure()
         run: echo "🚨 Frontend build failed — check npm logs above."
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 3 — Run backend tests + Checkstyle (main branch only)
-# ─────────────────────────────────────────────────────────────────────────────
+
   Testing:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -129,9 +121,7 @@ jobs:
         if: github.ref != 'refs/heads/main'
         run: echo "ℹ️ Skipping tests on non-main branch."
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 4 — Trivy filesystem security scan (runs in parallel with Testing)
-# ─────────────────────────────────────────────────────────────────────────────
+
   Security_Scan:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
@@ -148,7 +138,7 @@ jobs:
           scan-type: fs
           scan-ref: .
           format: json
-          exit-code: 0            # set to 1 if you want to FAIL on HIGH/CRITICAL
+          exit-code: 0            
           vuln-type: os,library
           output: trivy-results.json
 
@@ -159,10 +149,7 @@ jobs:
           path: trivy-results.json
           retention-days: 7
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 5 — Build Docker images and push to AWS ECR
-#          Only runs on main branch after ALL prior jobs pass
-# ─────────────────────────────────────────────────────────────────────────────
+
   Build_And_Push_ECR:
     name: Build & Push to ECR
     runs-on: ubuntu-latest
@@ -176,9 +163,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ── AWS Authentication ──────────────────────────────────────────────
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4   # v4 is current stable
+        uses: aws-actions/configure-aws-credentials@v4   
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -188,7 +174,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── Backend Docker image ────────────────────────────────────────────
+  
       - name: Build and push backend image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -203,9 +189,8 @@ jobs:
           docker push $ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:latest
 
-          echo "✅ Backend image pushed: $ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
+          echo " Backend image pushed: $ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
 
-      # ── Frontend Docker image ───────────────────────────────────────────
       - name: Build and push frontend image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -220,16 +205,15 @@ jobs:
           docker push $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:latest
 
-          echo "✅ Frontend image pushed: $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG"
+          echo " Frontend image pushed: $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG"
 
-      # ── Trivy scan on the built Docker images (post-build) ─────────────
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}
           format: table
-          exit-code: 0            # set to 1 to fail pipeline on CRITICAL vulns
+          exit-code: 0        
           vuln-type: os,library
 
       - name: Scan frontend image with Trivy
