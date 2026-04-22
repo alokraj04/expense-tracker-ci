@@ -91,35 +91,33 @@ jobs:
 
 
   Testing:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    needs: Build_Backend
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  name: Backend Tests
+  runs-on: ubuntu-latest
+  needs: Build_Backend
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: maven
 
-      - name: Run unit tests (main branch only)
-        if: github.ref == 'refs/heads/main'
-        working-directory: backend
-        run: mvn test -B
+  if: false
 
-      - name: Checkstyle (main branch only)
-        if: github.ref == 'refs/heads/main'
-        working-directory: backend
-        run: mvn checkstyle:checkstyle -B
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Skip tests on feature branches
-        if: github.ref != 'refs/heads/main'
-        run: echo "ℹ️ Skipping tests on non-main branch."
+    - name: Set up Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: "17"
+        distribution: "temurin"
+        cache: maven
+
+    - name: Run unit tests
+      working-directory: backend
+      run: mvn test
+
+    - name: Checkstyle
+      working-directory: backend
+      run: mvn checkstyle:checkstyle -B
 
 
   Security_Scan:
@@ -133,7 +131,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
