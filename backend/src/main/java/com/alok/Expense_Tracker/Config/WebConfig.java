@@ -41,6 +41,7 @@ public class WebConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/oauth2/**").permitAll()
+                        .requestMatchers("/actuator/health", "/health").permitAll()
                         .requestMatchers("/auditor/**").hasAnyRole(AUDITOR.name(), ADMIN.name())
                         .requestMatchers("/users/**").hasAnyRole(USER.name(), ADMIN.name())
                         .requestMatchers("/api/**").authenticated()
